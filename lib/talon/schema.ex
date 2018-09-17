@@ -1,5 +1,4 @@
 defmodule Talon.Schema do
-
   def primary_key(%{from: {_, mod}} = query) do
     adapter(mod).primary_key(query)
   end
@@ -19,6 +18,7 @@ defmodule Talon.Schema do
   def type(%{from: {_, mod}} = query, key) do
     adapter(mod).type(query, key)
   end
+
   def type(module, key) when is_atom(module) do
     adapter(module).type(module, key)
   end
@@ -45,8 +45,9 @@ defmodule Talon.Schema do
   # Temporary solution. Need to move this to the adapter
 
   def associations(struct) when is_map(struct) do
-    associations struct.__struct__
+    associations(struct.__struct__)
   end
+
   def associations(module) do
     :associations
     |> module.__schema__
@@ -54,7 +55,12 @@ defmodule Talon.Schema do
       case module.__schema__(:association, field) do
         %Ecto.Association.BelongsTo{owner_key: owner_key} = assoc ->
           {owner_key, assoc}
+
         %Ecto.Association.Has{field: field} = assoc ->
+          {field, assoc}
+
+        # Temporary solution to support many_to_many associations
+        %Ecto.Association.ManyToMany{field: field} = assoc ->
           {field, assoc}
       end
     end)
@@ -63,6 +69,6 @@ defmodule Talon.Schema do
   def association?(schema, name) do
     :associations
     |> schema.__schema__
-    |> Enum.any?(& schema.__schema__(:association, &1).owner_key == name)
+    |> Enum.any?(&(schema.__schema__(:association, &1).owner_key == name))
   end
 end
